@@ -2,14 +2,21 @@ from flask import Flask
 from flask_socketio import SocketIO, emit
 import eventlet
 
-# Necessary for Render deployment
+# Monkey patch must be the VERY first thing
 eventlet.monkey_patch()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 
-# Allow connection from anywhere (*)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# UPDATE THIS LINE:
+# 1. async_mode='eventlet' (Crucial for Render)
+# 2. max_http_buffer_size=10000000 (Allows 10MB frames, prevents disconnects)
+# 3. ping_timeout=60 (More tolerant of slow internet)
+socketio = SocketIO(app, 
+                    cors_allowed_origins="*", 
+                    async_mode='eventlet', 
+                    max_http_buffer_size=10000000, 
+                    ping_timeout=60)
 
 @app.route('/')
 def index():
@@ -21,7 +28,6 @@ def handle_connect():
 
 @socketio.on('video_frame_from_laptop')
 def handle_frame(data):
-    # Broadcast the received frame to all viewers
     emit('new_frame_for_viewers', data, broadcast=True)
 
 if __name__ == '__main__':
